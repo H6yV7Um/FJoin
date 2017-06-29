@@ -6,11 +6,16 @@ FIELDS :  FIELD
        |  FIELD ',' FIELDS
        ;
 
-FROM_STATEMENT : FROM DB_NAME DOT TABLE_NAME ;
+FROM_STATEMENT : FROM FULL_TABLE_NAME ;
 
-FIELD  :  DB_NAME DOT TABLE_NAME DOT FIELD_NAME
-       |  DB_NAME DOT TABLE_NAME DOT FIELD_NAME AS ALIAS
+FULL_TABLE_NAME: DB_NAME DOT TABLE_NAME ;
+
+
+FIELD  :  FULL_FIELD_NAME
+       |  FULL_FIELD_NAME AS ALIAS
        ;
+
+FULL_FIELD_NAME : FULL_TABLE_NAME DOT FIELD_NAME ;
 
 SELECT     : 'select'  ;
 FROM       : 'from'    ;
@@ -25,4 +30,4 @@ DOT        : '.'       ;
 
 IDENTIFY   :  [0-9a-Z]+     ;
 
-WS     :  [ \t\r\n]+ -> skip ;
+WS         :  [ \t\r\n]+ -> skip ;
