@@ -1,6 +1,0 @@
-com/ahuazhu/fjoin/sql/SqlParser.class
-com/ahuazhu/fjoin/sql/SQLVisitor.class
-com/ahuazhu/fjoin/sql/SqlBaseListener.class
-com/ahuazhu/fjoin/sql/SqlParser$SqlContext.class
-com/ahuazhu/fjoin/sql/SqlLexer.class
-com/ahuazhu/fjoin/sql/SqlListener.class
