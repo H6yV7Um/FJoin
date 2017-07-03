@@ -1,33 +1,29 @@
 grammar Sql;
 
-sql    :  SELECT FIELDS FROM_STATEMENT ;
+sql    :  'select' fields from_stat ;
 
-FIELDS :  FIELD
-       |  FIELD ',' FIELDS
+fields :  field
+       |  field ',' fields
        ;
 
-FROM_STATEMENT : FROM FULL_TABLE_NAME ;
+from_stat : 'from' full_table_name ;
 
-FULL_TABLE_NAME: DB_NAME DOT TABLE_NAME ;
+full_table_name: db_name '.' table_name ;
 
 
-FIELD  :  FULL_FIELD_NAME
-       |  FULL_FIELD_NAME AS ALIAS
+field  :  full_field_name
+       |  full_field_name 'as' alias_name
        ;
 
-FULL_FIELD_NAME : FULL_TABLE_NAME DOT FIELD_NAME ;
+full_field_name : full_table_name '.' field_name ;
 
-SELECT     : 'select'  ;
-FROM       : 'from'    ;
-AS         : 'as'      ;
+db_name    : IDENTIFY           ;
+table_name : IDENTIFY           ;
+alias_name : IDENTIFY           ;
+field_name : IDENTIFY           ;
 
-DB_NAME    :  IDENTIFY ;
-TABLE_NAME :  IDENTIFY ;
-FIELD_NAME :  IDENTIFY ;
-ALIAS      :  IDENTIFY ;
+DOT        :  ','              ;
 
-DOT        : '.'       ;
-
-IDENTIFY   :  [0-9a-Z]+     ;
+IDENTIFY   :  [_0-9a-zA-Z]+     ;
 
 WS         :  [ \t\r\n]+ -> skip ;
