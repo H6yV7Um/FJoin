@@ -1,4 +1,4 @@
-package com.ahuazhu.fjoin.datasource;
+package com.ahuazhu.flink.example;
 
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.types.Row;

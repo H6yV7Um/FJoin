@@ -1,8 +1,8 @@
-package com.ahuazhu.fjoin.datasource;
+package com.ahuazhu.flink.example;
 
-import com.ahuazhu.fjoin.config.Configure;
-import com.ahuazhu.fjoin.config.JoinOnRule;
-import com.ahuazhu.fjoin.config.MySqlDataSource;
+import com.ahuazhu.flink.config.Configure;
+import com.ahuazhu.flink.config.JoinOnRule;
+import com.ahuazhu.flink.config.MySqlDataSource;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;

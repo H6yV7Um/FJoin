@@ -1,4 +1,4 @@
-package com.ahuazhu.fjoin.config;
+package com.ahuazhu.flink.config;
 
 import java.util.ArrayList;
 import java.util.List;
