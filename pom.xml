@@ -64,6 +64,11 @@
             <artifactId>flink-clients_2.10</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-core</artifactId>
+            <version>${flink.version}</version>
+        </dependency>
         <!--<dependency>-->
             <!--<groupId>org.apache.flink</groupId>-->
             <!--<artifactId>flink-table_2.10</artifactId>-->
