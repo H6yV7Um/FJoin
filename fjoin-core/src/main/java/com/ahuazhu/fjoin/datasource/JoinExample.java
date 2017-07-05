@@ -3,20 +3,20 @@ package com.ahuazhu.fjoin.datasource;
 import com.ahuazhu.fjoin.config.Configure;
 import com.ahuazhu.fjoin.config.JoinOnRule;
 import com.ahuazhu.fjoin.config.MySqlDataSource;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.table.api.GroupedTable;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.types.Row;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Created by zhuzhengwen on 2017/7/4.
@@ -26,37 +26,58 @@ public class JoinExample {
     public static void main(String[] args) throws Exception {
         Configure config = init();
 
-        List<MySqlDataSource> ds = config.getDataSourceList();
-
-        Table[] tables = new Table[ds.size()];
+        final List<MySqlDataSource> ds = config.getDataSourceList();
 
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
-        int i = 0;
-        for (MySqlDataSource dataSource : ds) {
-            DataSet<Row> dataSet = initDataSet(env, dataSource);
-            tableEnv.registerDataSet(dataSource.getName(), dataSet);
+        final DataSet<Row>[] dataSets = new DataSet[ds.size()];
+
+        for (int i = 0; i < dataSets.length; i++) {
+            DataSet<Row> dataSet = initDataSet(env, ds.get(i));
+            dataSets[i] = dataSet;
         }
 
-        Table main = tableEnv.scan("fulfil_main_order");
-        Table sub = tableEnv.scan("lg_fulfil_order");
-        Table detail = tableEnv.scan("fulfil_order_detail");
+        List<Row> result = dataSets[0]
+                .leftOuterJoin(dataSets[1])
+                .where("fulfil_main_order_lg_order_code")
+                .equalTo("lg_fulfil_order_lg_order_code")
+                .with(new MyJoinFunction(ds.get(0).getFields(), ds.get(1).getFields()))
+                .collect();
 
-        Table t = main.leftOuterJoin(sub, "fulfil_main_order_lg_order_code = lg_fulfil_order_lg_order_code");
-        t = t.leftOuterJoin(detail, "fulfil_main_order_lg_order_code = fulfil_order_detail_lg_order_code");
 
-        GroupedTable grouped = t.groupBy("fulfil_main_order_lg_order_code");
+        String[] fields0 = ds.get(0).getFields();
+        Class[] clazz0 = ds.get(0).getClazz();
 
-        List<Row> collect = tableEnv.toDataSet(grouped.table(), new RowTypeInfo()).collect();
+        String[] fields1 = ds.get(1).getFields();
+        Class[] clazz1 = ds.get(1).getClazz();
 
-        for (Row row : collect) {
-            System.err.println(row);
+
+        String[] fields = new String[fields0.length + fields1.length];
+        Class[] clazz = new Class[clazz0.length + clazz1.length];
+
+        for (int i =0 ; i < fields0.length; i ++) {
+            fields[i] = fields0[i];
+            clazz[i] = clazz0[i];
         }
-        System.out.println(collect);
+        for (int i = 0; i < fields1.length; i ++) {
+            fields[i + fields0.length] = fields1[i];
+            clazz[i + clazz0.length] = clazz1[i];
+        }
+
+        DataSet<Row> dataSet = env.fromCollection(result, new RowTypeInfo(toFlinkBasicType(clazz), fields));
+
+        result = dataSet.leftOuterJoin(dataSets[2])
+                .where("fulfil_main_order_lg_order_code")
+                .equalTo("fulfil_order_detail_lg_order_code")
+                .with(new MyJoinFunction(fields, ds.get(2).getFields()))
+                .collect();
+
+        for (Row row : result) {
+            System.out.println(row);
+        }
     }
 
-    private static DataSet<Row> initDataSet(ExecutionEnvironment env, MySqlDataSource dataSource) {
+    private static DataSet<Row> initDataSet(ExecutionEnvironment env, final MySqlDataSource dataSource) {
 
         JDBCInputFormat inputFormat = JDBCInputFormat.buildJDBCInputFormat()
                 .setDrivername("com.mysql.jdbc.Driver")
@@ -68,8 +89,8 @@ public class JoinExample {
                 .finish();
         DataSet<Row> dbData = env.createInput(inputFormat);
 
-
         return dbData;
+
     }
 
     private static TypeInformation<?>[] toFlinkBasicType(Class<?>[] clazz) {
@@ -188,5 +209,24 @@ public class JoinExample {
 
         configure.setRules(Arrays.asList(rule1, rule2));
         return configure;
+    }
+
+    static class MyMapFunction implements MapFunction<Row, Map>, Serializable {
+
+        private final String[] fields;
+
+        public MyMapFunction(String[] fields) {
+            this.fields = fields;
+        }
+
+        @Override
+        public Map map(Row row) throws Exception {
+            Map map = new TreeMap();
+
+            for (int i = 0; i < row.getArity(); i++) {
+                map.put(fields[i], row.getField(i));
+            }
+            return map;
+        }
     }
 }
