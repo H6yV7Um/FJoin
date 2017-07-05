@@ -3,6 +3,8 @@ package com.ahuazhu.fjoin.datasource;
 import com.ahuazhu.fjoin.config.Configure;
 import com.ahuazhu.fjoin.config.JoinOnRule;
 import com.ahuazhu.fjoin.config.MySqlDataSource;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -11,12 +13,10 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 /**
  * Created by zhuzhengwen on 2017/7/4.
@@ -51,29 +51,116 @@ public class JoinExample {
         String[] fields1 = ds.get(1).getFields();
         Class[] clazz1 = ds.get(1).getClazz();
 
+        String[] fields2 = ds.get(2).getFields();
+        Class[] clazz2 = ds.get(2).getClazz();
+
 
         String[] fields = new String[fields0.length + fields1.length];
         Class[] clazz = new Class[clazz0.length + clazz1.length];
 
-        for (int i =0 ; i < fields0.length; i ++) {
+        for (int i = 0; i < fields0.length; i++) {
             fields[i] = fields0[i];
             clazz[i] = clazz0[i];
         }
-        for (int i = 0; i < fields1.length; i ++) {
+        for (int i = 0; i < fields1.length; i++) {
             fields[i + fields0.length] = fields1[i];
             clazz[i + clazz0.length] = clazz1[i];
         }
 
         DataSet<Row> dataSet = env.fromCollection(result, new RowTypeInfo(toFlinkBasicType(clazz), fields));
 
-        result = dataSet.leftOuterJoin(dataSets[2])
+        List<Row> finalList = dataSet.leftOuterJoin(dataSets[2])
                 .where("fulfil_main_order_lg_order_code")
                 .equalTo("fulfil_order_detail_lg_order_code")
                 .with(new MyJoinFunction(fields, ds.get(2).getFields()))
                 .collect();
 
-        for (Row row : result) {
-            System.out.println(row);
+        final String[] finalFields = new String[fields.length + fields2.length];
+        Class[] finalClazz = new Class[clazz.length + clazz2.length];
+
+
+        for (int i = 0; i < fields.length; i++) {
+            finalFields[i] = fields[i];
+            finalClazz[i] = clazz[i];
+        }
+        for (int i = 0; i < fields2.length; i++) {
+            finalFields[i + fields.length] = fields2[i];
+            finalClazz[i + clazz.length] = clazz2[i];
+        }
+
+        DataSet<Row> finalDataSet = env.fromCollection(finalList, new RowTypeInfo(toFlinkBasicType(finalClazz), finalFields));
+
+        List<Record> recordList = finalDataSet.groupBy("fulfil_main_order_lg_order_code")
+                .reduceGroup(new GroupReduceFunction<Row, Record>() {
+                    @Override
+                    public void reduce(Iterable<Row> values, Collector<Record> out) throws Exception {
+
+                        Record record = new Record();
+
+                        for (Row row : values) {
+                            for (int i = 0; i < row.getArity(); i++) {
+                                String fieldName = finalFields[i];
+                                Object value = row.getField(i);
+                                record.putValue(fieldName, value);
+                            }
+                        }
+
+                        out.collect(record);
+
+                    }
+                })
+                .collect();
+
+        for (Record record : recordList) {
+            System.out.println(record);
+        }
+    }
+
+    private static class Record implements Serializable{
+
+        private String keyValue;
+
+        private String keyName;
+
+        private Map<String, List<String>> fields = new HashMap<>();
+
+        public String getKeyValue() {
+            return keyValue;
+        }
+
+        public void setKeyValue(String keyValue) {
+            this.keyValue = keyValue;
+        }
+
+        public String getKeyName() {
+            return keyName;
+        }
+
+        public void setKeyName(String keyName) {
+            this.keyName = keyName;
+        }
+
+        void putValue(String field, Object value) {
+            List valueList = fields.get(field);
+            if (valueList == null) {
+                valueList = new ArrayList();
+                fields.put(field, valueList);
+            }
+            valueList.add(value);
+        }
+
+        public String toString() {
+            StringBuilder sb = new StringBuilder(1024);
+
+            for (Map.Entry<String, List<String>> entry : fields.entrySet()) {
+                sb.append(entry.getKey()).append(":")
+                        .append("[")
+                        .append(StringUtils.join(entry.getValue(), ","))
+                        .append("]")
+                        .append(",")
+                        ;
+            }
+            return sb.toString();
         }
     }
 
