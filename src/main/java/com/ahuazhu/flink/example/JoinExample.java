@@ -11,6 +11,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
@@ -44,7 +45,6 @@ public class JoinExample {
                 .with(new MyJoinFunction(ds.get(0).getFields(), ds.get(1).getFields()))
                 .collect();
 
-
         String[] fields0 = ds.get(0).getFields();
         Class[] clazz0 = ds.get(0).getClazz();
 
@@ -66,6 +66,7 @@ public class JoinExample {
             fields[i + fields0.length] = fields1[i];
             clazz[i + clazz0.length] = clazz1[i];
         }
+
 
         DataSet<Row> dataSet = env.fromCollection(result, new RowTypeInfo(toFlinkBasicType(clazz), fields));
 
